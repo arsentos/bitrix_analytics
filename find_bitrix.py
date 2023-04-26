@@ -31,7 +31,7 @@ def check_http_url(url):
 
 
 def find_bitrix(urls: List[str]):
-    bitrix_list = ["bitrix24"]
+    bitrix_list = ["bitrix24", "битрикс24"]
     answer = {}
     headers = {
         'User-Agent': (
