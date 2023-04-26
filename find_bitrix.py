@@ -1,11 +1,37 @@
 from typing import List
-
 import requests
-from bs4 import BeautifulSoup
+from urllib.parse import urlparse
+from http.client import HTTPConnection, HTTPSConnection
+
+def check_https_url(url):
+    HTTPS_URL = f'https://{url}'
+    try:
+        HTTPS_URL = urlparse(HTTPS_URL)
+        connection = HTTPSConnection(HTTPS_URL.netloc, timeout=2)
+        connection.request('HEAD', HTTPS_URL.path)
+        if connection.getresponse():
+            return True
+        else:
+            return False
+    except:
+        return False
+
+def check_http_url(url):
+    HTTP_URL = f'http://{url}'
+    try:
+        HTTP_URL = urlparse(HTTP_URL)
+        connection = HTTPConnection(HTTP_URL.netloc)
+        connection.request('HEAD', HTTP_URL.path)
+        if connection.getresponse():
+            return True
+        else:
+            return False
+    except:
+        return False
 
 
 def find_bitrix(urls: List[str]):
-    bitrix_list = ["bitrix", "bitrix24", "битрикс", "битрикс24", "1с-битрикс"]
+    bitrix_list = ["bitrix24"]
     answer = {}
     headers = {
         'User-Agent': (
@@ -25,16 +51,37 @@ def find_bitrix(urls: List[str]):
     }
 
     for url in urls:
-        res = requests.get(url, headers=headers)
-        html_lower = res.text.lower()
-        for bitrix in bitrix_list:
-            search_res = html_lower.find(bitrix)
-            if search_res != -1:
-                answer[url] = True
-                break
-            answer[url] = False
+        final_url = -1
+        answer[url] = {}
+        if check_https_url(url):
+            final_url = f"https://{url}"
+        else:
+            final_url = f"http://{url}"
+        try:
+            res = requests.get(final_url, headers=headers)
+            status = res.history[0].status_code if len(res.history) != 0 else res.status_code
+            if status == 302 or status == 301:
+                answer[url]["had_redirect"] = True
+            else:
+                answer[url]["had_redirect"] = False
+            answer[url]["status"] = status
+            html_lower = res.text.lower()
+            for bitrix in bitrix_list:
+                search_res = html_lower.find(bitrix)
+                if search_res != -1:
+                    answer[url]["found_bitrix"] = True
+                    break
+                answer[url]["found_bitrix"] = False
+            answer[url]["error"] = None
+            print(url, answer[url])
+        except Exception as e:
+            answer[url]["error"] = f"{e}"
+            answer[url]["status"] = -1
+            answer[url]["found_bitrix"] = False
+            print(url, answer[url])
     return answer
 
 
-result = find_bitrix(["https://it-solution.ru", "http://1-bit27.ru"])
+lst = ["it-solution.ru"]
+result = find_bitrix(lst)
 print(result)
