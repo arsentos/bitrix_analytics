@@ -2,6 +2,9 @@ from typing import List
 import requests
 from urllib.parse import urlparse
 from http.client import HTTPConnection, HTTPSConnection
+from psycopg2 import connect
+
+
 
 def check_https_url(url):
     HTTPS_URL = f'https://{url}'
@@ -30,7 +33,7 @@ def check_http_url(url):
         return False
 
 
-def find_bitrix(urls: List[str]):
+def find_bitrix(urls: List[tuple], query):
     bitrix_list = ["bitrix24", "битрикс24"]
     answer = {}
     headers = {
@@ -52,6 +55,7 @@ def find_bitrix(urls: List[str]):
 
     for url in urls:
         final_url = -1
+
         answer[url] = {}
         if check_https_url(url):
             final_url = f"https://{url}"
@@ -75,13 +79,37 @@ def find_bitrix(urls: List[str]):
             answer[url]["error"] = None
             print(url, answer[url])
         except Exception as e:
-            answer[url]["error"] = f"{e}"
+            answer[url]["had_redirect"] = False
             answer[url]["status"] = -1
             answer[url]["found_bitrix"] = False
+            answer[url]["error"] = f"{e}"
             print(url, answer[url])
+        finally:
+            f.write(f"{url} {answer[url]['found_bitrix']}\n")
     return answer
+lst = []
+num = 0
+total = 1000
+# with open("p_t.txt", "r") as f:
+#     l = f.readlines()
+#     for site in l:
+#         r = site.split("\n")
+#         lst.append(r[0])
+#         print(r[0])
+#         num += 1
+#         if num >= total:
+#             break
+# with open("./testing sites.txt", "w") as r:
+#     result = find_bitrix(lst, r)
+# for key, value in result.items():
+#     if value["found_bitrix"]:
+#         print(key, value)
 
-
-lst = ["it-solution.ru"]
-result = find_bitrix(lst)
-print(result)
+if __name__ == "__main__":
+    conn = connect("user=postgres password=123qweASD host=localhost port=5432 dbname=ru_sites")
+    cursor = conn.cursor()
+    select_query = "SElECT * FROM ru_sites_info.ru_sites_all LIMIT 500"
+    cursor.execute(select_query)
+    raw_rows = cursor.fetchall()
+    urls = [raw for raw in raw_rows]
+    print(urls)
